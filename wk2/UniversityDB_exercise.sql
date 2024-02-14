@@ -321,7 +321,65 @@ INSERT Section VALUES
 ('CS-102','1','Fall','2009',NULL,NULL,NULL),
 ('CS-103','1','Fall','2009',NULL,NULL,NULL);
 # 2.25 In table Takes enroll every student in the Comp.Sci. department in the section for CS-102
-INSERT 
+INSERT Takes 
+SELECT StudID, 'CS-102', '1', 'Fall', '2009', NULL
+FROM Student
+WHERE DeptName = 'Comp. Sci.';
+# 2.26 Delete both courses CS-102 and CS-103 in the Takes table.
+DELETE FROM Takes WHERE CourseID = 'CS-102' OR CourseID = 'CS-103';
+# 2.27 Move the Finance department to the Taylor building.
+UPDATE Department SET Building ='Taylor' WHERE DeptName = 'Finance';
+# 2.28 Write SQL DDL statements corresponding to the Relation Schemas below for an Insurance Database
+DROP TABLE IF EXISTS Person;
+DROP TABLE IF EXISTS Car;
+DROP TABLE IF EXISTS Accident;
+DROP TABLE IF EXISTS Owns;
+DROP TABLE IF EXISTS Participants;
 
+CREATE TABLE Person
+	(DriverID		VARCHAR(8), 
+	 DriverName		VARCHAR(20) NOT NULL, 
+	 Address		VARCHAR(100),
+	 PRIMARY KEY(DriverID)
+	);
+
+CREATE TABLE Car
+	(License		VARCHAR(7), 
+	 Model			VARCHAR(20), 
+	 ProdYear		YEAR, 
+	 PRIMARY KEY(License)
+	);
+ 
+CREATE TABLE Accident 
+	(ReportNumber	VARCHAR(10), 
+	 AccDate		DATE,
+	 Location		VARCHAR(20),  
+	 PRIMARY KEY(ReportNumber)
+	);
+
+CREATE TABLE Owns 
+	(DriverID		VARCHAR(8), 
+	 License		VARCHAR(7),  
+	 FOREIGN KEY(DriverID) REFERENCES Person(DriverID) ON DELETE CASCADE,
+     FOREIGN KEY(License) REFERENCES Car(License)
+	);
+
+CREATE TABLE Participants
+	(ReportNumber 	VARCHAR(10), 
+	 License		VARCHAR(7), 
+     DriverID		VARCHAR(8),
+     DamageAmount 	DECIMAL(8,0),
+     FOREIGN KEY(ReportNumber) REFERENCES Accident(ReportNumber) ON DELETE CASCADE,
+     FOREIGN KEY(License) REFERENCES Car(License)
+    );
+
+# 2.29 Write SQL DML statements to populate the database with data, to end up with
+INSERT Person VALUES
+('31261549', 'Hans Hansen', 'Jernbane Alle, 74, 2720 Vanlose');
+SELECT * FROM Person;
+
+-- INSERT Car VALUES
+-- ('JW46898', 'Honda Accord Aut. 2.0', '2001');
+-- SELECT * FROM Car;
 
 
