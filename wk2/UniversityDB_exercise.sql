@@ -330,11 +330,14 @@ DELETE FROM Takes WHERE CourseID = 'CS-102' OR CourseID = 'CS-103';
 # 2.27 Move the Finance department to the Taylor building.
 UPDATE Department SET Building ='Taylor' WHERE DeptName = 'Finance';
 # 2.28 Write SQL DDL statements corresponding to the Relation Schemas below for an Insurance Database
+
+
+
+DROP TABLE IF EXISTS Owns;
 DROP TABLE IF EXISTS Person;
+DROP TABLE IF EXISTS Participants;
 DROP TABLE IF EXISTS Car;
 DROP TABLE IF EXISTS Accident;
-DROP TABLE IF EXISTS Owns;
-DROP TABLE IF EXISTS Participants;
 
 CREATE TABLE Person
 	(DriverID		VARCHAR(8), 
@@ -345,7 +348,7 @@ CREATE TABLE Person
 
 CREATE TABLE Car
 	(License		VARCHAR(7), 
-	 Model			VARCHAR(20), 
+	 Model			VARCHAR(30), 
 	 ProdYear		YEAR, 
 	 PRIMARY KEY(License)
 	);
@@ -368,7 +371,7 @@ CREATE TABLE Participants
 	(ReportNumber 	VARCHAR(10), 
 	 License		VARCHAR(7), 
      DriverID		VARCHAR(8),
-     DamageAmount 	DECIMAL(8,0),
+     DamageAmount 	DECIMAL(10,0),
      FOREIGN KEY(ReportNumber) REFERENCES Accident(ReportNumber) ON DELETE CASCADE,
      FOREIGN KEY(License) REFERENCES Car(License)
     );
@@ -378,8 +381,20 @@ INSERT Person VALUES
 ('31261549', 'Hans Hansen', 'Jernbane Alle, 74, 2720 Vanlose');
 SELECT * FROM Person;
 
--- INSERT Car VALUES
--- ('JW46898', 'Honda Accord Aut. 2.0', '2001');
--- SELECT * FROM Car;
+INSERT Car VALUES
+('JW46898', 'Honda Accord Aut. 2.0', 2001);
+SELECT * FROM Car;
+
+INSERT Accident VALUES 
+('3004000121', 20150618,'2605 Brøndby');
+SELECT * FROM Accident;
+
+INSERT Owns VALUES 
+('31261549','JW46898');
+SELECT * FROM Owns;
+
+INSERT Participants VALUES 
+('3004000121', 'JW46898','31262549',6800);
+SELECT * FROM Participants;
 
 
