@@ -9,6 +9,7 @@ Sixth Edition, 2011.*/
 
 # If the tables already exists, then they are deleted!
  
+ 
 DROP TABLE IF EXISTS PreReq;
 DROP TABLE IF EXISTS TimeSlot;
 DROP TABLE IF EXISTS Advisor;
@@ -306,9 +307,11 @@ NATURAL JOIN Course
 WHERE InstName = 'Brandt'
 GROUP BY Title;
 # 3.1.3 Delete all courses that have never been offered(that is, do not occur in the Section table).
+SET SQL_SAFE_UPDATES = 0;
 DELETE FROM Course
 WHERE CourseID NOT IN
 (Select CourseID FROM Section);
+SET SQL_SAFE_UPDATES = 1;
 # 3.2.1 Find the highest salary of any instructor
 SELECT MAX(Salary) FROM Instructor;
 # 3.2.2 Find all instructors earning the highest salary. There might be more than one with the same salary
@@ -346,13 +349,60 @@ INSERT GradePoints VALUES
 ('D-', '0.7'),
 ('F', '0.0');
 # 3.2.8 earned by each student who has taken a course. Hint: use GROUP BY
-SELECT StudName, SUM(Points) FROM Takes
+SELECT StudName, SUM(Credits*Points) 
+FROM (Takes NATURAL JOIN Course)
 NATURAL JOIN GradePoints
 NATURAL JOIN Student
-Group By StudName
+Group By StudID;
 # 3.2.9 for each student who has taken a course, that is, the total grade-points divided by the total
 # credits for the associated courses. Order the students by falling averages. Hint: use GROUP BY.
+SELECT StudName, SUM(Credits*Points)/SUM(Credits) 
+AS GPA
+FROM (Takes NATURAL JOIN Course)
+NATURAL JOIN GradePoints
+NATURAL JOIN Student
+Group By StudID
+ORDER BY GPA DESC;
+# 3.2.10 Now modify the queries from the two previous questions such that students who 
+# have not taken a course are also included in the result.
+(SELECT StudName, SUM(Credits*Points)/SUM(Credits) 
+AS GPA
+FROM (Takes NATURAL JOIN Course)
+NATURAL JOIN GradePoints
+NATURAL JOIN Student
+Group By StudID)
+UNION
+(SELECT StudName, NULL 
+AS GPA
+FROM Student 
+WHERE StudID NOT IN 
+(Select StudID FROM Takes))
+ORDER BY GPA DESC;
+# 3.2.11 Create a relation schema Testscores (by a table declaration) and insert values such that 
+# SELECT * FROM Testscores;
 
+DROP TABLE IF EXISTS TestScores;
+CREATE TABLE TestScores
+	(Student		VARCHAR(20),
+     Test 			VARCHAR(3), 
+	 Score			INT,
+     PRIMARY KEY(Student, Test));
 
-
-
+INSERT INTO TestScores values
+	('Brandt', 'A', 47), 
+	('Brandt', 'B', 50),
+	('Brandt', 'C', NULL), 
+    ('Brandt', 'D', NULL),
+	('Chavez', 'A', 52), 
+	('Chavez', 'B', 45),
+	('Chavez', 'C', 53), 
+	('Chavez', 'D', NULL);
+SELECT * FROM TestScores;
+# Then find the maximal score for each student who has an average larger than 49.
+SELECT Student, MAX(Score)
+FROM TestScores
+GROUP BY Student HAVING AVG(Score) > 49;
+# Then find those students for whom some score is unknown
+SELECT DISTINCT Student 
+FROM TestScores
+WHERE Score IS NULL
