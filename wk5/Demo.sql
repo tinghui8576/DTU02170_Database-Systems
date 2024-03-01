@@ -8,7 +8,7 @@ Sixth Edition, 2011.*/
 # Names of tables and attributes are changed slightly to improve the naming standard!
 
 # If the tables already exists, then they are deleted!
- 
+use test;
  
 DROP TABLE IF EXISTS PreReq;
 DROP TABLE IF EXISTS TimeSlot;
@@ -295,33 +295,120 @@ INSERT PreReq VALUES
 
 # 5.1.1 Create a Function
 DROP Function IF EXISTS LeapYear;
+DROP Function IF EXISTS Age;
 CREATE FUNCTION LeapYear ( vYear YEAR ) RETURNS BOOLEAN
 RETURN
 (vYear % 4 = 0) AND ((vYear % 100 <> 0) OR (vYear % 400 = 0));
 
-SELECT LeapYear(2024);
 
+CREATE FUNCTION Age( vDate Date ) RETURNS INTEGER
+RETURN TIMESTAMPDIFF(YEAR, vDate, CURDATE());
+
+SELECT
+StudID, StudName, Birth, Age(Birth) AS Age, LeapYear(YEAR(Birth))
+AS LeapYear FROM Student;
 # 5.1.2 Create a Trigger
-
-CREATE TABLE InstLog LIKE Instructor;ß∂
+# named Instructor_After_Insert that after an instructor has been inserted into the Instructor table 
+# will insert the same row in a table named InstLog with a timestamp added.
+# Hint, for a timestamp NOW(6):
+DROP TABLE InstLog;
+CREATE TABLE InstLog LIKE Instructor;
 ALTER TABLE InstLog ADD LogTime TIMESTAMP(6);
 
 DELIMITER //
 CREATE TRIGGER Instructor_After_Insert
 AFTER INSERT ON Instructor FOR EACH ROW
 BEGIN
-INSERT InstLog VALUES (New.InstID,
-New.InstName,
-New.DeptName,
-New.Salary,
-NOW(6));
+INSERT InstLog VALUES (	New.InstID,
+						New.InstName,
+						New.DeptName,
+						New.Salary,
+						NOW(6));
 END //
 DELIMITER ;
 
-SELECT * FROM Instructor;
-SELECT * FROM InstLog;
+-- SELECT * FROM Instructor;
+-- SELECT * FROM InstLog;
 INSERT Instructor VALUES
 ('11001', 'Valdez', 'Comp. Sci.', 36000),
 ('11002', 'Koerver', 'Comp. Sci.', 36000);
+-- SELECT * FROM Instructor;
+-- SELECT * FROM InstLog;
+# 5.1.3 Create a Procedure
+# As a continuation of 5.1.2, create a procedure called InstBackup that will copy all rows from 
+# the Instructor table to a table called InstOld, and thereafter also delete all rows in the table InstLog.
+# The procedure should delete the rows in the old backup table (i.e. InstOld), make a new backup table with 
+# the rows of the Instructor table, and delete the rows in InstLog to prepare for recording new inserts into Instructor.
+Drop Table InstOld;
+Drop Procedure InstBackUp;
+Create Table InstOld LIKE Instructor;
+
+DELIMITER //
+Create procedure InstBackUp()
+Begin 
+	DELETE FROM InstOld;
+    INSERT INTO InstOld SELECT * FROM Instructor; 
+    DELETE FROM InstLog;
+End//
+DELIMITER ;
+
+-- SELECT * FROM Instructor; 
+-- SELECT * FROM InstOld; 
+-- SELECT * FROM InstLog;
+
+SET SQL_SAFE_UPDATES = 0; 
+CALL InstBackup;
+SET SQL_SAFE_UPDATES = 1;
+
+-- SELECT * FROM Instructor;
+-- SELECT * FROM InstOld; # contains the Instructor rows 
+-- SELECT * FROM InstLog; # no rows
+
+# 5.1.4 Create a Procedure with a Transaction
+# As a continuation of 5.1.3, redefine the procedure called InstBackup so that all data 
+# manipulations are done within a transaction. Test it.
+
+DROP TABLE IF EXISTS InstOld; 
+DROP TABLE IF EXISTS InstLog;
+
+CREATE TABLE InstOld LIKE Instructor; 
+CREATE TABLE InstLog LIKE Instructor; 
+ALTER TABLE InstLog ADD LogTime TIMESTAMP(6);
+
+DELIMITER //
+CREATE PROCEDURE InstBackup1 () 
+BEGIN
+	DECLARE vSQLSTATE CHAR(5) DEFAULT '00000'; 
+	DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+	# this handler statement below ensures that
+	# if an exception is raised by SQL during the transaction 
+    # then vSQLSTATE will be assigned a value <> '00000‘
+	# and continue
+	BEGIN
+		GET DIAGNOSTICS CONDITION 1 vSQLSTATE = RETURNED_SQLSTATE;
+	END;
+    
+	START TRANSACTION;
+	DELETE FROM InstOld;
+	INSERT INTO InstOld SELECT * FROM Instructor; 
+	DELETE FROM InstLog;
+	SELECT vSQLSTATE;
+	IF vSQLSTATE = '00000' THEN COMMIT;
+		ELSE ROLLBACK; 
+	END IF;
+END // 
+DELIMITER ;
+
+# Test the procedure before and after “DROP TABLE InstLog;”.
+INSERT Instructor VALUES ('10000', 'Hansen', 'Comp. Sci.', 50000); 
+SELECT * FROM InstLog; # contains the new row
+SET SQL_SAFE_UPDATES = 0;
+CALL InstBackup1; # SELECT vSQLSTATE returns 00000 and the transaction is committed
 SELECT * FROM Instructor;
-SELECT * FROM InstLog
+SELECT * FROM InstOld; #same as Instructor 
+SELECT * FROM InstLog; #no rows
+DROP TABLE InstLog;
+CALL InstBackup1; # SELECT vSQLSTATE returns 42S02 and the transaction is rolled back as Instlog does not exist
+# Remove “SELECT vSQLSTATE;” inside the procedure when testing has been done!
+
+
