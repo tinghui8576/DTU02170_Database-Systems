@@ -8,7 +8,7 @@ Sixth Edition, 2011.*/
 # Names of tables and attributes are changed slightly to improve the naming standard!
 
 # If the tables already exists, then they are deleted!
-
+use test;
 
 DROP TABLE IF EXISTS PreReq;
 DROP TABLE IF EXISTS TimeSlot;
@@ -18,6 +18,7 @@ DROP TABLE IF EXISTS Student;
 DROP TABLE IF EXISTS Teaches;
 DROP TABLE IF EXISTS Section;
 DROP TABLE IF EXISTS Instructor;
+
 DROP TABLE IF EXISTS Course;
 DROP TABLE IF EXISTS Department;
 DROP TABLE IF EXISTS Classroom;
@@ -368,6 +369,7 @@ DROP USER IF EXISTS 'Susan'@'localhost';
 CREATE USER 'Karen'@'localhost' IDENTIFIED BY 'SetPassword';
 CREATE USER 'Linda'@'localhost' IDENTIFIED BY 'SetPassword';
 CREATE USER 'Susan'@'localhost' IDENTIFIED BY 'SetPassword';
+CREATE USER 'bob' IDENTIFIED BY '123';
 
 SELECT user FROM mysql.user; -- shows users
 # b) Then grant SELECT to Karen and ALL to Linda and Susan to a database under your DBA control.
