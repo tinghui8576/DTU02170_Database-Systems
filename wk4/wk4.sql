@@ -363,24 +363,25 @@ SELECT * FROM SeniorInstructors;
 # 4.2.7 Authorization
 # a) Connect to the database as Database Administrator (root) and create the users Karen, Linda and Susan with the generic password
 # SetPassword. Please observe that user names are case sensitive
-DROP USER IF EXISTS 'Karen'@'localhost';
-DROP USER IF EXISTS 'Linda'@'localhost';
-DROP USER IF EXISTS 'Susan'@'localhost';
-CREATE USER 'Karen'@'localhost' IDENTIFIED BY 'SetPassword';
-CREATE USER 'Linda'@'localhost' IDENTIFIED BY 'SetPassword';
-CREATE USER 'Susan'@'localhost' IDENTIFIED BY 'SetPassword';
-CREATE USER 'bob' IDENTIFIED BY '123';
+DROP USER IF EXISTS 'Karen';
+DROP USER IF EXISTS 'Linda';
+DROP USER IF EXISTS 'Susan';
+CREATE USER 'Karen' IDENTIFIED BY 'SetPassword';
+CREATE USER 'Linda' IDENTIFIED BY 'SetPassword';
+CREATE USER 'Susan' IDENTIFIED BY 'SetPassword';
 
 SELECT user FROM mysql.user; -- shows users
 # b) Then grant SELECT to Karen and ALL to Linda and Susan to a database under your DBA control.
-GRANT SELECT ON University.* TO 'Karen'@'localhost';
-GRANT ALL ON University.* TO 'Linda'@'localhost';
-GRANT ALL ON University.* TO 'Susan'@'localhost';
+GRANT SELECT ON University.* TO 'Karen';
+GRANT ALL ON University.* TO 'Linda';
+GRANT ALL ON University.* TO 'Susan';
 
-SHOW GRANTS FOR 'Karen'@'localhost';
-SHOW GRANTS FOR 'Linda'@'localhost';
-SHOW GRANTS FOR 'Susan'@'localhost';
+SHOW GRANTS FOR 'Karen';
+SHOW GRANTS FOR 'Linda';
+SHOW GRANTS FOR 'Susan';
 
-# c) Then close your connect to the server (on Workbench under Windows this can be done choosing File->Close Connection Tab).
-
+# h) Close the connection and then connect as DBA (root) and drop users Karen, Linda and Susan.
+DROP USER 'Karen';
+DROP USER 'Linda';
+DROP USER 'Susan';
 
