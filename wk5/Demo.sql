@@ -311,7 +311,7 @@ AS LeapYear FROM Student;
 # named Instructor_After_Insert that after an instructor has been inserted into the Instructor table 
 # will insert the same row in a table named InstLog with a timestamp added.
 # Hint, for a timestamp NOW(6):
-DROP TABLE InstLog;
+DROP TABLE IF EXISTS InstLog;
 CREATE TABLE InstLog LIKE Instructor;
 ALTER TABLE InstLog ADD LogTime TIMESTAMP(6);
 
@@ -327,20 +327,20 @@ INSERT InstLog VALUES (	New.InstID,
 END //
 DELIMITER ;
 
--- SELECT * FROM Instructor;
--- SELECT * FROM InstLog;
+SELECT * FROM Instructor;
+SELECT * FROM InstLog;
 INSERT Instructor VALUES
 ('11001', 'Valdez', 'Comp. Sci.', 36000),
 ('11002', 'Koerver', 'Comp. Sci.', 36000);
--- SELECT * FROM Instructor;
--- SELECT * FROM InstLog;
+SELECT * FROM Instructor;
+SELECT * FROM InstLog;
 # 5.1.3 Create a Procedure
 # As a continuation of 5.1.2, create a procedure called InstBackup that will copy all rows from 
 # the Instructor table to a table called InstOld, and thereafter also delete all rows in the table InstLog.
 # The procedure should delete the rows in the old backup table (i.e. InstOld), make a new backup table with 
 # the rows of the Instructor table, and delete the rows in InstLog to prepare for recording new inserts into Instructor.
-Drop Table InstOld;
-Drop Procedure InstBackUp;
+Drop Table IF EXISTS InstOld;
+Drop Procedure IF EXISTS InstBackUp;
 Create Table InstOld LIKE Instructor;
 
 DELIMITER //
@@ -352,17 +352,17 @@ Begin
 End//
 DELIMITER ;
 
--- SELECT * FROM Instructor; 
--- SELECT * FROM InstOld; 
--- SELECT * FROM InstLog;
+SELECT * FROM Instructor; 
+SELECT * FROM InstOld; 
+SELECT * FROM InstLog;
 
 SET SQL_SAFE_UPDATES = 0; 
 CALL InstBackup;
 SET SQL_SAFE_UPDATES = 1;
 
--- SELECT * FROM Instructor;
--- SELECT * FROM InstOld; # contains the Instructor rows 
--- SELECT * FROM InstLog; # no rows
+SELECT * FROM Instructor;
+SELECT * FROM InstOld; # contains the Instructor rows 
+SELECT * FROM InstLog; # no rows
 
 # 5.1.4 Create a Procedure with a Transaction
 # As a continuation of 5.1.3, redefine the procedure called InstBackup so that all data 
@@ -370,6 +370,7 @@ SET SQL_SAFE_UPDATES = 1;
 
 DROP TABLE IF EXISTS InstOld; 
 DROP TABLE IF EXISTS InstLog;
+DROP PROCEDURE IF EXISTS InstBackup1;
 
 CREATE TABLE InstOld LIKE Instructor; 
 CREATE TABLE InstLog LIKE Instructor; 
@@ -407,8 +408,179 @@ CALL InstBackup1; # SELECT vSQLSTATE returns 00000 and the transaction is commit
 SELECT * FROM Instructor;
 SELECT * FROM InstOld; #same as Instructor 
 SELECT * FROM InstLog; #no rows
-DROP TABLE InstLog;
+DROP TABLE IF EXISTS InstLog;
 CALL InstBackup1; # SELECT vSQLSTATE returns 42S02 and the transaction is rolled back as Instlog does not exist
 # Remove “SELECT vSQLSTATE;” inside the procedure when testing has been done!
 
+# 5.1.5 Create an Event
+# As a continuation of 5.1.4, create an event named InstEvent that will execute the called InstBackup 
+# every week the night between Saturday and Sunday at 00:00:01, first time 2016-02-21.
+Drop event if exists InstEvent;
 
+CREATE TABLE InstLog LIKE Instructor;
+ALTER TABLE InstLog ADD LogTime TIMESTAMP(6);
+
+CREATE EVENT InstEvent
+	ON SCHEDULE EVERY 1 WEEK STARTS '2024-02-29 00:00:01' DO CALL InstBackup;
+SET GLOBAL event_scheduler = 1;
+SHOW VARIABLES LIKE 'event_scheduler';
+
+# 5.1.6 Create an Event making a dice roll
+# Design a Gambling Machine which rolls a dice every 5 seconds:
+# 1. Set the GLOBAL Event_Scheduler to 1.
+SET GLOBAL event_scheduler = 1;
+# 2. Create a table DiceRolls with attributes RollNo and DiceEyes of data type integer.
+# Hint: If you add AUTO_INCREMENT after the type of the RollNo attribute, then each time 
+# you insert a new row in the table, you need only stating the value of DiceEyes – the value 
+# of RollNo will automatically be generated: First time it will be 1, then 2, etc.
+Drop TABLES if exists DiceRolls;
+Create table DiceRolls(
+	RollNo		INTEGER AUTO_INCREMENT PRIMARY KEY,
+	DiceEyes	INTEGER 
+);
+# 3. Create an event RollDice that executes every 5 seconds and inserts a random number of 1, 2, 3, 4, 5 or 6 (DiceEyes) into table DiceRolls.
+# Hint: RAND() returns a random floating-point value v in the range 0 <= v < 1.0. FLOOR() returns the largest integer value not greater than the argument.
+Drop EVENT if exists RollDice;
+CREATE EVENT RollDice
+	ON SCHEDULE EVERY 5 SECOND
+    DO INSERT DiceRolls (DiceEyes) 
+		VALUES (1+FLOOR(6*RAND()));
+# Make a query showing the number of times the six dice values have been played within the first 10 rolls.
+SELECT DiceEyes, COUNT(DiceEyes)
+FROM DiceRolls WHERE RollNo <= 10
+GROUP BY DiceEyes; 
+#stop event after use
+SET GLOBAL event_scheduler = 0;
+# 5.2.1 Create a Function
+# Create a function named BuildingCapacityFct which takes as input a Building of the Classroom table in the University database 
+# and returns the total capacity of the building
+DROP FUNCTION IF EXISTS BuildingCapacityFct;
+DELIMITER //
+CREATE FUNCTION BuildingCapacityFct(vBuilding VARCHAR(20)) RETURNS INT
+BEGIN
+	DECLARE vCapacity INT;
+    SELECT SUM(Capacity) INTO vCapacity 
+    FROM Classroom WHERE Building = vBuilding;
+	
+    RETURN vCapacity;
+END
+// 
+DELIMITER ;
+
+SELECT BuildingCapacityFct('Watson');
+
+# 5.2.2 Procedure with Error Signalling
+# For the TimeSlot table of the University database, state informally constraints (besides the key constraint) that should hold between
+# the values of attributes in a single row and between values of attributes of two rows. Check your suggestion with a teaching assistant before continuing.
+# Create a procedure InsertTimeSlot for inserting a row into the TimeSlot table. It should signal an error in case the insertion of the new tuple leads
+# to a violation of the constraints. (The procedure should not check whether the constraints already hold before the insertion.) To make the
+# procedure more readable, it is advisable to define one or several auxiliary/helper functions to express the error conditions.
+
+DROP FUNCTION IF EXISTS TimeOverlap;
+DELIMITER //
+CREATE FUNCTION TimeOverlap
+	(fvDate  ENUM('M','T','W','R','F','S','U'),
+     fvStart TIME, fvEnd TIME,
+	 svDate  ENUM('M','T','W','R','F','S','U'),
+     svStart TIME, svEnd TIME) RETURNS BOOLEAN
+    
+    RETURN
+    fvDate = svDate AND
+    ((fvStart <= svStart AND fvEnd >= svStart) OR (svStart <= fvStart AND svEnd >= fvStart))
+//
+DELIMITER ;
+
+SELECT TimeOverlap(	'M', '08:00:00', '08:50:00', 
+					'T', '07:00:00', '08:20:00');
+SELECT TimeOverlap(	'M', '08:00:00', '08:50:00', 
+					'T', '08:20:00', '08:50:00');
+SELECT TimeOverlap(	'M', '08:00:00', '08:50:00', 
+					'M', '07:00:00', '08:20:00');
+SELECT TimeOverlap(	'M', '08:00:00', '08:50:00', 
+					'M', '08:20:00', '08:50:00');
+
+DROP FUNCTION IF EXISTS CheckTime;
+DELIMITER //
+CREATE FUNCTION CheckTime
+	(vSlotID VARCHAR(4),
+     fvDate  ENUM('M','T','W','R','F','S','U'),
+     fvStart TIME, fvEnd TIME) RETURNS BOOLEAN
+    
+    RETURN EXISTS
+    (SELECT * FROM TimeSlot
+	 WHERE TimeSlotID = vSlotID AND
+     TimeOverlap(fvDate, fvStart, fvEnd,
+				 DayCode, StartTime, EndTime)
+    );
+//
+DELIMITER ;
+
+SELECT CheckTime('A', 'M', '08:00:00', '08:50:00');
+SELECT CheckTime('A', 'M', '09:00:00', '09:50:00');
+
+DROP PROCEDURE IF EXISTS InsertTimeSlot;
+DELIMITER //
+CREATE PROCEDURE InsertTimeSlot(
+	IN vSlotID VARCHAR(4),
+    IN vDayCode ENUM('M','T','W','R','F','S','U'),
+    IN vStart TIME, 
+    IN vEnd TIME)
+BEGIN
+	IF vEnd <= vStart
+    THEN SIGNAL SQLSTATE 'A0000'
+			SET MYSQL_ERRNO = 1525,
+            MESSAGE_TEXT = 
+            'EndTime is equal to or before StartTime';
+    ELSEIF CheckTime(vSlotID, vDayCode, vStart, vEnd) 
+    THEN SIGNAL SQLSTATE 'B0000'
+			SET MYSQL_ERRNO = 1530,
+            MESSAGE_TEXT = 
+            'Time overlaps with exisiting time interval in the same time slot';
+	END IF;
+    INSERT TimeSlot VALUES (vSlotID, vDayCode, vStart, vEnd);
+END
+// DELIMITER ;
+
+-- SELECT * FROM TimeSlot;
+-- CALL InsertTimeSlot('A', 'M', '08:50:00', '08:00:00');
+-- CALL InsertTimeSlot('A', 'M', '08:00:00', '08:50:00');
+-- CALL InsertTimeSlot('A', 'T', '08:00:00', '08:50:00'); 
+-- SELECT * FROM TimeSlot;
+
+# 5.2.3 Trigger with Error Signalling
+# Make a trigger TimeSlot_Before_Insert, which automatically raises a signal when inserting a row into TimeSlot (directly with an INSERT without 
+# using the InsertTimeSlot procedure), if the insertion of the new row leads to a violation of the constraints identified in the previous exercise. 
+# Test the trigger by making INSERTs into TimeSLOT
+
+DROP TRIGGER IF EXISTS TimeSlot_Before_Insert;
+DELIMITER //
+CREATE TRIGGER TimeSlot_Before_Insert BEFORE INSERT ON TimeSlot FOR EACH ROW
+BEGIN
+	IF NEW.EndTime <= NEW.StartTime
+    THEN SIGNAL SQLSTATE 'A0000'
+			SET MYSQL_ERRNO = 1525,
+            MESSAGE_TEXT = 
+            'EndTime is equal to or before StartTime';
+	ELSEIF CheckTime(NEW.TimeSlotID, NEW.DayCode, NEW.StartTime, NEW.EndTime) 
+    THEN SIGNAL SQLSTATE 'B0000'
+			SET MYSQL_ERRNO = 1530,
+            MESSAGE_TEXT = 
+            'Time overlaps with exisiting time interval in the same time slot';
+	END IF;
+END
+// DELIMITER ;
+
+-- INSERT TimeSlot VALUES ('A', 'M', '08:50:00', '08:00:00');
+-- INSERT TimeSlot VALUES ('A', 'M', '08:00:00', '08:50:00');
+-- INSERT TimeSlot VALUES ('A', 'R', '08:00:00', '08:50:00');
+
+# 5.2.4 Create an Event for a European Roulette
+# Design a Gambling Machine which rolls a ball on a European Roulette every 10 seconds and stores the Lucky number. 
+# Create a table called BallRolls with attributes RollNo and LuckyNo. 
+DROP TABLE IF EXISTS BallRolls;
+CREATE TABLE BallRolls(
+		RollNo INTEGER AUTO_INCREMENT PRIMARY KEY,
+        LuckNo INTEGER);
+#Create an event RollBall that executes every 10 seconds and inserts RollNo (automatically counting from 1) and LuckyNo  
+# (i.e. random number between 0 and 36) into the table BallRolls.
+DROP EVENT IF EXISTS 
