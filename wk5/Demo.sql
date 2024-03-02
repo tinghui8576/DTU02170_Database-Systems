@@ -577,10 +577,19 @@ END
 # 5.2.4 Create an Event for a European Roulette
 # Design a Gambling Machine which rolls a ball on a European Roulette every 10 seconds and stores the Lucky number. 
 # Create a table called BallRolls with attributes RollNo and LuckyNo. 
-DROP TABLE IF EXISTS BallRolls;
-CREATE TABLE BallRolls(
-		RollNo INTEGER AUTO_INCREMENT PRIMARY KEY,
-        LuckNo INTEGER);
+
+SET GLOBAL event_scheduler = 1;
+-- DROP TABLE IF EXISTS BallRolls;
+-- CREATE TABLE BallRolls(
+-- 		RollNo INTEGER AUTO_INCREMENT PRIMARY KEY,
+--         LuckNo INTEGER);
 #Create an event RollBall that executes every 10 seconds and inserts RollNo (automatically counting from 1) and LuckyNo  
 # (i.e. random number between 0 and 36) into the table BallRolls.
-DROP EVENT IF EXISTS 
+DROP EVENT IF EXISTS RollBall;
+CREATE EVENT RollBall
+	ON SCHEDULE EVERY 10 SECOND
+    DO INSERT BallRolls(LuckNo)
+	VALUES (Floor(36*Rand()));
+    
+SELECT * FROM BallRolls;
+    
